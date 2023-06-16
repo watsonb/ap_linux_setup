@@ -13,6 +13,7 @@
     packages:
       - vim
       - htop
+      - gnome-tweaks
       - google-chrome-stable
       - ripgrep
     apt_repositories:
@@ -41,7 +42,7 @@
         repo: "{{ item.repo }}"
         state: "{{ item.state | default('present') }}"
         filename: "{{ item.filename | default(omit) }}"
-      loop: "{{ apt_repsitories }}"
+      loop: "{{ apt_repositories }}"
       tags: [apt, apt_repository, packages]
       notify:
         - Update cache
