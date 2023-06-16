@@ -25,6 +25,9 @@
         filename: google-chrome
       - repo: deb [arch=amd64] https://packages.microsoft.com/repos/azure-cli/ {{ ansible_distribution_release }} main
         filename: azure-cli
+    apt_keys:
+      - url: https://packages.microsoft.com/keys/microsoft.asc
+        keyring: /etc/apt/trusted.gpg.d/microsoft.asc.gpg
   tasks:
 
     - name: Enable passwordless sudo
@@ -35,6 +38,22 @@
           ben     ALL=(ALL)   NOPASSWD: ALL
         mode: u=rw,g=r,o=r
       tags: [sudo]
+
+    - name: APT | Ensure dependencies installed
+      become: true
+      ansible.builtin.apt:
+        name: apt-transport-https
+        state: present
+      tags: [dependencies]
+
+    - name: APT_KEY | Add apt keys
+      become: true
+      ansible.builtin.apt_key:
+        url: "{{ item.url }}"
+        state: present
+        keyring: "{{ item.keyring }}"
+      loop: "{{ apt_keys }}"
+      tags: [apt, apt_keys]
 
     - name: Ensure universe repository is enabled
       become: true
