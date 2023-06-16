@@ -1,0 +1,64 @@
+---
+
+#
+# This is the initial playbook.  I'll probably start out with one big playbook
+# and then refactor into indivdual plays/tasks/etc.
+#
+
+- name: Setup a fresh Linux machine
+  hosts: localhost
+  gather_facts: true
+  vars:
+    ansible_connection: local
+    packages:
+      - vim
+      - htop
+      - google-chrome-stable
+      - ripgrep
+    apt_repositories:
+      - repo: deb http://us.archive.ubuntu.com/ubuntu/ {{ ansible_distribution_release }} universe
+        filename: ubuntu
+      - repo: deb http://us.archive.ubuntu.com/ubuntu/ {{ ansible_distribution_release }}-updates universe
+        filename: ubuntu
+      - repo: deb [arch=amd64] https://dl.google.com/linux/chrome/deb/ stable main
+        filename: google-chrome
+      - repo: deb [arch=amd64] https://packages.microsoft.com/repos/azure-cli/ {{ ansible_distribution_release }} main
+        filename: azure-cli
+  tasks:
+
+    - name: Enable passwordless sudo
+      become: true
+      ansible.builtin.copy:
+        dest: /etc/sudoers.d/ben
+        content: |
+          ben     ALL=(ALL)   NOPASSWD: ALL
+        mode: u=rw,g=r,o=r
+      tags: [sudo]
+
+    - name: Ensure universe repository is enabled
+      become: true
+      ansible.builtin.apt_repository:
+        repo: "{{ item.repo }}"
+        state: "{{ item.state | default('present') }}"
+        filename: "{{ item.filename | default(omit) }}"
+      loop: "{{ apt_repsitories }}"
+      tags: [apt, apt_repository, packages]
+      notify:
+        - Update cache
+
+    - name: Update cache by notifying handlers now
+      ansible.builtin.meta: flush_handlers
+      tags: [apt, apt_repository, packages]
+
+    - name: Install packages
+      become: true
+      ansible.builtin.package:
+        name: "{{ packages }}"
+      tags: [apt, packages]
+
+  handlers:
+
+    - name: Update cache
+      become: true
+      ansible.builtin.apt:
+        update_cache: true
