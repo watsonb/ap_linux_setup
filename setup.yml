@@ -28,6 +28,7 @@
     apt_keys:
       - url: https://packages.microsoft.com/keys/microsoft.asc
         keyring: /etc/apt/trusted.gpg.d/microsoft.asc.gpg
+      - url: https://dl.google.com/linux/linux_signing_key.pub
   tasks:
 
     - name: Enable passwordless sudo
@@ -51,11 +52,11 @@
       ansible.builtin.apt_key:
         url: "{{ item.url }}"
         state: present
-        keyring: "{{ item.keyring }}"
+        keyring: "{{ item.keyring | default(omit) }}"
       loop: "{{ apt_keys }}"
       tags: [apt, apt_keys]
 
-    - name: Ensure universe repository is enabled
+    - name: Ensure apt repositories present
       become: true
       ansible.builtin.apt_repository:
         repo: "{{ item.repo }}"
