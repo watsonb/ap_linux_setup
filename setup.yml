@@ -13,9 +13,22 @@
     packages:
       - vim
       - htop
+      - atop
+      - btop
       - gnome-tweaks
       - google-chrome-stable
       - ripgrep
+      - fzf
+      - element-desktop
+      - brave-browser
+      - keepass2
+      - pidgin
+      - lynx
+      - ncdu
+      - azure-cli
+      - podman  # installs natively on 22.04+
+      - powershell
+      - solaar
     apt_repositories:
       - repo: deb http://us.archive.ubuntu.com/ubuntu/ {{ ansible_distribution_release }} universe
         filename: ubuntu
@@ -25,10 +38,22 @@
         filename: google-chrome
       - repo: deb [arch=amd64] https://packages.microsoft.com/repos/azure-cli/ {{ ansible_distribution_release }} main
         filename: azure-cli
+      - repo: deb [signed-by=/usr/share/keyrings/element-io-archive-keyring.gpg] https://packages.element.io/debian/ default main
+        filename: element-io
+      - repo: deb [signed-by=/usr/share/keyrings/brave-browser-archive-keyring.gpg arch=amd64] https://brave-browser-apt-release.s3.brave.com/ stable main
+        filename: brave-browser
+      - repo: deb [arch=amd64,arm64,armhf] https://packages.microsoft.com/ubuntu/{{ ansible_distribution_version }}/prod {{ ansible_distribution_release }} main
+        filename: microsoft-prod.list
+      - repo: deb http://ppa.launchpad.net/solaar-unifying/ppa/ubuntu {{ ansible_distribution_release }} main
+        filename: solaar-unifying
     apt_keys:
       - url: https://packages.microsoft.com/keys/microsoft.asc
         keyring: /etc/apt/trusted.gpg.d/microsoft.asc.gpg
       - url: https://dl.google.com/linux/linux_signing_key.pub
+      - url: https://packages.element.io/debian/element-io-archive-keyring.gpg
+        keyring: /usr/share/keyrings/element-io-archive-keyring.gpg
+      - url: https://brave-browser-apt-release.s3.brave.com/brave-browser-archive-keyring.gpg
+        keyring: /usr/share/keyrings/brave-browser-archive-keyring.gpg
   tasks:
 
     - name: Enable passwordless sudo
@@ -43,7 +68,9 @@
     - name: APT | Ensure dependencies installed
       become: true
       ansible.builtin.apt:
-        name: apt-transport-https
+        name:
+          - apt-transport-https
+          - software-properties-common
         state: present
       tags: [dependencies]
 
