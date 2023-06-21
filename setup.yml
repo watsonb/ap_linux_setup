@@ -11,6 +11,7 @@
   vars:
     ansible_connection: local
     packages:
+      - curl
       - vim
       - htop
       - atop
@@ -26,7 +27,7 @@
       - lynx
       - ncdu
       - azure-cli
-      - podman  # installs natively on 22.04+
+      # - podman  # installs natively on 22.04+
       - powershell
       - solaar
       - tldr
@@ -45,7 +46,7 @@
         filename: brave-browser
       - repo: deb [arch=amd64,arm64,armhf] https://packages.microsoft.com/ubuntu/{{ ansible_distribution_version }}/prod {{ ansible_distribution_release }} main
         filename: microsoft-prod.list
-      - repo: deb http://ppa.launchpad.net/solaar-unifying/ppa/ubuntu {{ ansible_distribution_release }} main
+      - repo: ppa:solaar-unifying/stable
         filename: solaar-unifying
     apt_keys:
       - url: https://packages.microsoft.com/keys/microsoft.asc
@@ -55,7 +56,41 @@
         keyring: /usr/share/keyrings/element-io-archive-keyring.gpg
       - url: https://brave-browser-apt-release.s3.brave.com/brave-browser-archive-keyring.gpg
         keyring: /usr/share/keyrings/brave-browser-archive-keyring.gpg
+    set_nvim_as_editor: true
+    set_nvim_as_vi_alias: true
+    set_nvim_as_vim_alias: true
+    nvim_version: v0.9.1  # check GitHub releases for available versions
+    nvim_config_repo_branch: lazy  # master, lazy (or other branch/tag)
+    install_nvm: false
+    nvim_config_repo: https://github.com/watsonb/nvim.git
+    nerd_fonts:
+      - https://github.com/ryanoasis/nerd-fonts/raw/master/patched-fonts/DejaVuSansMono/Regular/DejaVuSansMNerdFontMono-Regular.ttf
+      - https://github.com/ryanoasis/nerd-fonts/raw/master/patched-fonts/DejaVuSansMono/Bold-Italic/DejaVuSansMNerdFontMono-BoldOblique.ttf
+      - https://github.com/ryanoasis/nerd-fonts/raw/master/patched-fonts/DejaVuSansMono/Bold/DejaVuSansMNerdFontMono-Bold.ttf
+      - https://github.com/ryanoasis/nerd-fonts/raw/master/patched-fonts/DejaVuSansMono/Italic/DejaVuSansMNerdFontMono-Oblique.ttf
+    nerd_icons:
+      - https://github.com/vorillaz/devicons/archive/master.zip
+      - https://github.com/erikflowers/weather-icons/archive/refs/tags/2.0.10.zip
+      - https://github.com/ryanoasis/nerd-fonts/releases/download/v3.0.2/NerdFontsSymbolsOnly.zip
+      - https://github.com/ryanoasis/nerd-fonts/releases/download/v3.0.2/UbuntuMono.zip
+      - https://github.com/FortAwesome/Font-Awesome/releases/download/6.4.0/fontawesome-free-6.4.0-desktop.zip
+      - https://github.com/FortAwesome/Font-Awesome/releases/download/6.4.0/fontawesome-free-6.4.0-web.zip
+      - https://github.com/AndreLZGava/font-awesome-extension/archive/refs/tags/v.0.0.3.zip
+      - https://github.com/microsoft/vscode-codicons/archive/refs/tags/0.0.33.zip
+      - https://github.com/lukas-w/font-logos/releases/download/v1.0.1/font-logos-1.0.1.zip
+
   tasks:
+
+    - name: SHELL | echo home
+      ansible.builtin.shell: echo $HOME
+      register: shell_out
+      changed_when: false
+      tags: [facts, home, always]
+
+    - name: SET_FACT | whoiam
+      ansible.builtin.set_fact:
+        my_home: "{{ shell_out.stdout }}"
+      tags: [facts, home, always]
 
     - name: Enable passwordless sudo
       become: true
@@ -104,6 +139,142 @@
       ansible.builtin.package:
         name: "{{ packages }}"
       tags: [apt, packages]
+
+    - name: Block of tasks for NVM
+      tags: [nvm]
+      block:
+
+        - name: Install NVM via installer script  # noqa command-instead-of-module risky-shell-pipe
+          ansible.builtin.shell: curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.3/install.sh | bash
+          args:
+            executable: /bin/bash
+            chdir: "{{ my_home }}/bin"
+          register: nvm_sh_out
+          changed_when: true
+
+        - name: Debug shell output
+          ansible.builtin.debug:
+            var: nvm_sh_out
+
+    - name: Use NVM to install lts
+      ansible.builtin.shell: |
+        export NVM_DIR="$HOME/.nvm"
+        [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
+        [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
+        nvm install --lts
+        nvm use --lts
+      args:
+        executable: /bin/bash
+      changed_when: true
+      tags: [nvm_lts, never]
+
+    - name: Block of tasks for neovim
+      tags: [nvim]
+      block:
+
+        - name: FILE | ensure $HOME/bin exists
+          ansible.builtin.file:
+            path: "{{ my_home }}/bin"
+            state: directory
+            mode: u=rwx,g=rx,o=rx
+          tags: [bin_dir]
+
+        - name: LINEINFILE | ensure $HOME/bin is in .bash_profile PATH
+          ansible.builtin.lineinfile:
+            path: "{{ my_home }}/.bash_profile"
+            line: 'export PATH=$PATH:{{ my_home }}/bin'
+            state: present
+            mode: u=rw,g=r,o=r
+            create: true
+          tags: [path, bash_profile]
+
+        - name: LINEINFILE | ensure $HOME/bin is in .bashrc PATH
+          ansible.builtin.lineinfile:
+            path: "{{ my_home }}/.bashrc"
+            line: 'export PATH=$PATH:{{ my_home }}/bin'
+            state: present
+            mode: u=rw,g=r,o=r
+          tags: [path, bash_profile]
+
+        - name: GET_URL | download nvim.appimage and install to $HOME/bin/nvim
+          # become: true
+          ansible.builtin.get_url:
+            url: "https://github.com/neovim/neovim/releases/\
+              download/{{ nvim_version }}/nvim.appimage"
+            dest: "{{ my_home }}/bin/nvim"
+            mode: u=rwx,g=rx,o=rx
+          tags: [nvim_download]
+
+        - name: APT | install some packages
+          become: true
+          ansible.builtin.apt:
+            name:
+              - ripgrep
+              - libfuse2  # for jammy
+            state: present
+          tags: [apt, packages]
+
+        - name: FILE | ensure .config/nvim exists
+          ansible.builtin.file:
+            path: "{{ my_home }}/.config/nvim"
+            state: directory
+            mode: u=rwx,g=rx,o=rx
+          tags: [config, config_dir]
+
+        - name: GIT | clone config
+          ansible.builtin.git:
+            repo: "{{ nvim_config_repo }}"
+            dest: "{{ my_home }}/.config/nvim"
+            version: "{{ nvim_config_repo_branch }}"
+          tags: [config, clone]
+
+        - name: LINEINFILE | set nvim as EDITOR
+          ansible.builtin.lineinfile:
+            path: "{{ my_home }}/.bashrc"
+            line: 'export EDITOR=/usr/local/bin/nvim'
+            state: present
+          when: set_nvim_as_editor | bool
+          tags: [bashrc, editor]
+
+        - name: LINEINFILE | setup vi alias
+          ansible.builtin.lineinfile:
+            path: "{{ my_home }}/.bashrc"
+            line: 'alias vi=nvim'
+            state: present
+          when: set_nvim_as_vi_alias | bool
+          tags: [bashrc, vi_alias]
+
+        - name: LINEINFILE | setup vim alias
+          ansible.builtin.lineinfile:
+            path: "{{ my_home }}/.bashrc"
+            line: 'alias vim=nvim'
+            state: present
+          when: set_nvim_as_vim_alias | bool
+          tags: [bashrc, vim_alias]
+
+        - name: Ensure local fonts folder exists
+          ansible.builtin.file:
+            path: "{{ my_home }}/.local/share/fonts"
+            state: directory
+            mode: u=rwx,g=rwx,o=rx
+          tags: [nerdfont, font_dir]
+
+        - name: Download fonts
+          ansible.builtin.get_url:
+            url: "{{ item }}"
+            dest: "{{ my_home }}/.local/share/fonts/{{ item | basename }}"
+            mode: u=rw,g=r,o=r
+          loop: "{{ nerd_fonts }}"
+          tags: [nerdfont, font_download]
+
+        - name: Download and extract icons
+          ansible.builtin.unarchive:
+            src: "{{ item }}"
+            dest: "{{ my_home }}/.local/share/fonts/"
+            remote_src: true
+          loop: "{{ nerd_icons }}"
+          tags: [nerdfont, icon_download]
+
 
   handlers:
 
