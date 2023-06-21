@@ -29,6 +29,7 @@
       - podman  # installs natively on 22.04+
       - powershell
       - solaar
+      - tldr
     apt_repositories:
       - repo: deb http://us.archive.ubuntu.com/ubuntu/ {{ ansible_distribution_release }} universe
         filename: ubuntu
