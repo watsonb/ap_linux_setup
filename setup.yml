@@ -61,7 +61,6 @@
     set_nvim_as_vim_alias: true
     nvim_version: v0.9.1  # check GitHub releases for available versions
     nvim_config_repo_branch: lazy  # master, lazy (or other branch/tag)
-    install_nvm: false
     nvim_config_repo: https://github.com/watsonb/nvim.git
     nerd_fonts:
       - https://github.com/ryanoasis/nerd-fonts/raw/master/patched-fonts/DejaVuSansMono/Regular/DejaVuSansMNerdFontMono-Regular.ttf
@@ -78,6 +77,35 @@
       - https://github.com/AndreLZGava/font-awesome-extension/archive/refs/tags/v.0.0.3.zip
       - https://github.com/microsoft/vscode-codicons/archive/refs/tags/0.0.33.zip
       - https://github.com/lukas-w/font-logos/releases/download/v1.0.1/font-logos-1.0.1.zip
+    gnome_settings:
+      # - setting: org.gnome.desktop.privacy report-technical-problems
+      #   value: 'false'
+      # - setting: org.gnome.desktop.screensaver lock-enabled
+      #   value: 'true'
+      # - setting: org.gnome.desktop.background show-desktop-icons
+      #   value: 'true'
+      # - setting: org.gnome.desktop.interface clock-show-date
+      #   value: 'true'
+      # - setting: org.gnome.desktop.interface enable-animations
+      #   value: 'true'
+      # - setting: org.gnome.desktop.interface gtk-theme
+      #   value: Yaru-blue-dark
+      # - setting: org.gnome.desktop.interface icon-theme
+      #   value: Yaru-blue
+      # - setting: org.gnome.desktop.interface color-scheme
+      #   value: prefer-dark
+      # - setting: org.gnome.desktop.wm.preferences button-layout
+      #   value: ':minimize,maximize,close'
+      # - setting: org.gnome.gedit.plugins.filebrowser tree-view
+      #   value: 'true'
+      # - setting: org.gnome.nautilus.preferences default-folder-viewer
+      #   value: icon-view
+      # - setting: org.gnome.nautilus.list-view use-tree-view
+      #   value: 'true'
+      - setting: org.gnome.nautilus.list-view default-visible-columns
+        value: "['name', 'size', 'owner', 'group', 'permissions', 'date_modified', 'starred']"
+      - setting: org.gnome.shell favorite-apps
+        value: "['firefox_firefox.desktop', 'google-chrome.desktop', 'brave-browser.desktop', 'org.gnome.Nautilus.desktop', 'org.gnome.Terminal.desktop', 'discord.desktop', 'pidgin.desktop', 'element-desktop.desktop', 'keepass2.desktop', 'libreoffice-calc.desktop', 'libreoffice-draw.desktop', 'libreoffice-impress.desktop', 'libreoffice-math.desktop', 'org.gnome.gedit.desktop', 'org.gnome.Cheese.desktop', 'org.gnome.Calculator.desktop', 'org.remmina.Remmina.desktop', 'solaar.desktop', 'org.gnome.tweaks.desktop', 'gnome-control-center.desktop']"
 
   tasks:
 
@@ -140,6 +168,42 @@
         name: "{{ packages }}"
       tags: [apt, packages]
 
+    - name: Block of tasks for Discord
+      tags: [discord]
+      block:
+
+        - name: Ensure download directory exists
+          ansible.builtin.file:
+            path: "{{ my_home }}/Downloads/discord"
+            state: directory
+            mode: u=rwx,g=r,o=r
+
+        - name: Download Discord deb installer
+          ansible.builtin.get_url:
+            url: https://discord.com/api/download?platform=linux&format=deb
+            dest: "{{ my_home }}/Downloads/discord/discord.deb"
+            mode: u=rw,g=r,o=r
+
+        - name: Install Discord
+          become: true
+          ansible.builtin.apt:
+            deb: "{{ my_home }}/Downloads/discord/discord.deb"
+
+    - name: Block of tasks for LazyGit
+      tags: [lazygit]
+      block:
+
+        - name: Shell script to install lazygit  # noqa command-instead-of-module risky-shell-pipe
+          ansible.builtin.shell: |
+            LAZYGIT_VERSION=$(curl -s "https://api.github.com/repos/jesseduffield/lazygit/releases/latest" | grep -Po '"tag_name": "v\K[^"]*')
+            curl -Lo lazygit.tar.gz "https://github.com/jesseduffield/lazygit/releases/latest/download/lazygit_${LAZYGIT_VERSION}_Linux_x86_64.tar.gz"
+            tar xf lazygit.tar.gz lazygit
+            sudo install lazygit /usr/local/bin
+          args:
+            chdir: "{{ my_home }}/Downloads"
+            creates: "{{ my_home }}/lazygit.tar.gz"
+          changed_when: true
+
     - name: Block of tasks for NVM
       tags: [nvm]
       block:
@@ -149,6 +213,7 @@
           args:
             executable: /bin/bash
             chdir: "{{ my_home }}/bin"
+            creates: "{{ my_home }}/.nvm/nvm.sh"
           register: nvm_sh_out
           changed_when: true
 
@@ -275,6 +340,33 @@
           loop: "{{ nerd_icons }}"
           tags: [nerdfont, icon_download]
 
+    - name: Block of tasks for Gnome Settings
+      tags: [gnome]
+      block:
+
+        - name: Get current settings
+          ansible.builtin.command: gsettings get {{ item.setting }}
+          loop: "{{ gnome_settings }}"
+          changed_when: false
+          register: gnome_current_settings
+
+        - name: Debug current gnome settings  # noqa jinja[spacing]
+          ansible.builtin.debug:
+            msg: |
+              setting {{ item['item']['setting'] }}
+              -> current {{ item.stdout }}
+              -> desired {{ item['item']['value'] }}
+          loop: "{{ gnome_current_settings.results }}"
+          loop_control:
+            label: "{{ item['item']['setting'] }}"
+
+        - name: Set desired settings
+          ansible.builtin.shell: gsettings set {{ item.setting }} "{{ item.value | string }}"
+          args:
+            executable: /bin/bash
+          loop: "{{ gnome_settings }}"
+          changed_when: false
+          register: gnome_desired_settings
 
   handlers:
 
