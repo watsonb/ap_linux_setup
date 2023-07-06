@@ -104,8 +104,15 @@
       #   value: 'true'
       - setting: org.gnome.nautilus.list-view default-visible-columns
         value: "['name', 'size', 'owner', 'group', 'permissions', 'date_modified', 'starred']"
+
+      # desired state(ish)
+      # - setting: org.gnome.shell favorite-apps
+      #   value: "['firefox_firefox.desktop', 'google-chrome.desktop', 'brave-browser.desktop', 'org.gnome.Nautilus.desktop', 'org.gnome.Terminal.desktop', 'discord.desktop', 'pidgin.desktop', 'element-desktop.desktop', 'keepass2.desktop', 'libreoffice-calc.desktop', 'libreoffice-draw.desktop', 'libreoffice-impress.desktop', 'libreoffice-math.desktop', 'org.gnome.gedit.desktop', 'org.gnome.Cheese.desktop', 'org.gnome.Calculator.desktop', 'org.remmina.Remmina.desktop', 'solaar.desktop', 'org.gnome.tweaks.desktop', 'gnome-control-center.desktop']"
+
+      # work laptop
       - setting: org.gnome.shell favorite-apps
-        value: "['firefox_firefox.desktop', 'google-chrome.desktop', 'brave-browser.desktop', 'org.gnome.Nautilus.desktop', 'org.gnome.Terminal.desktop', 'discord.desktop', 'pidgin.desktop', 'element-desktop.desktop', 'keepass2.desktop', 'libreoffice-calc.desktop', 'libreoffice-draw.desktop', 'libreoffice-impress.desktop', 'libreoffice-math.desktop', 'org.gnome.gedit.desktop', 'org.gnome.Cheese.desktop', 'org.gnome.Calculator.desktop', 'org.remmina.Remmina.desktop', 'solaar.desktop', 'org.gnome.tweaks.desktop', 'gnome-control-center.desktop']"
+        value: "['firefox_firefox.desktop', 'google-chrome.desktop', 'brave-browser.desktop', 'org.gnome.Nautilus.desktop', 'org.gnome.Terminal.desktop', 'wezterm.desktop', 'discord.desktop', 'pidgin.desktop', 'slack.desktop', 'element-desktop.desktop', 'chrome-cifhbcnohmdccbgoicgdjpfamggdegmo-Default.desktop', 'chrome-ogkpjadkpdcbpdmleaajadmcfjbgpbom-Default.desktop', 'chrome-pndjpgcenhhofgkcfpgfedlefflbnpdo-Default.desktop', 'keepass2.desktop', 'libreoffice-calc.desktop', 'libreoffice-draw.desktop', 'libreoffic-impress.desktop', 'libreoffice-writer.desktop', 'org.gnome.gedit.desktop', 'gimp.desktop', 'org.gnome.Screenshot.desktop', 'com.uploadedlobster.peek.desktop', 'org.remmina.Remmina.desktop', 'vmware-vmrc.desktop', 'chrome-cinhimbnkkaeohfgghhklpknlkffjgod-Default.desktop', 'chrome-agimnkijcaahngcdmfeangaknmldooml-Default.desktop', 'chrome-ncmjhecbjeaamljdfahankockkkdmedg-Default.desktop', 'org.gnome.Calculator.desktop', 'advanced-rest-client.desktop', 'Postman.desktop', 'insomnia.desktop', 'gnome-system-monitor_gnome-system-monitor.desktop', 'update-manager.desktop', 'solaar.desktop', 'org.gnome.tweaks.desktop', 'gnome-control-center.desktop']"
+
 
   tasks:
 
@@ -349,6 +356,7 @@
           loop: "{{ gnome_settings }}"
           changed_when: false
           register: gnome_current_settings
+          tags: [gnome_settings_get]
 
         - name: Debug current gnome settings  # noqa jinja[spacing]
           ansible.builtin.debug:
@@ -359,6 +367,7 @@
           loop: "{{ gnome_current_settings.results }}"
           loop_control:
             label: "{{ item['item']['setting'] }}"
+          tags: [gnome_settings_get]
 
         - name: Set desired settings
           ansible.builtin.shell: gsettings set {{ item.setting }} "{{ item.value | string }}"
@@ -367,6 +376,7 @@
           loop: "{{ gnome_settings }}"
           changed_when: false
           register: gnome_desired_settings
+          tags: [gnome_settings_set]
 
   handlers:
 
