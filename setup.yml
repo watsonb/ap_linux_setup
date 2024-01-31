@@ -27,10 +27,14 @@
       - lynx
       - ncdu
       - azure-cli
-      # - podman  # installs natively on 22.04+
+      - podman  # installs natively on 22.04+
       - powershell
       - solaar
       - tldr
+      - nala
+      - build-essential
+      - xclip
+      - tmux
     apt_repositories:
       - repo: deb http://us.archive.ubuntu.com/ubuntu/ {{ ansible_distribution_release }} universe
         filename: ubuntu
