@@ -27,6 +27,7 @@
       - lynx
       - ncdu
       - azure-cli
+      - google-cloud-cli
       - podman  # installs natively on 22.04+
       - powershell
       - solaar
@@ -35,6 +36,11 @@
       - build-essential
       - xclip
       - tmux
+      - sssd
+      - libcurl4-openssl-dev
+      - jq
+      - tidy
+      - fd-find
     apt_repositories:
       - repo: deb http://us.archive.ubuntu.com/ubuntu/ {{ ansible_distribution_release }} universe
         filename: ubuntu
@@ -52,6 +58,8 @@
         filename: microsoft-prod.list
       - repo: ppa:solaar-unifying/stable
         filename: solaar-unifying
+      - repo: deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main
+        filename: google-cloud-sdk.list
     apt_keys:
       - url: https://packages.microsoft.com/keys/microsoft.asc
         keyring: /etc/apt/trusted.gpg.d/microsoft.asc.gpg
@@ -60,6 +68,8 @@
         keyring: /usr/share/keyrings/element-io-archive-keyring.gpg
       - url: https://brave-browser-apt-release.s3.brave.com/brave-browser-archive-keyring.gpg
         keyring: /usr/share/keyrings/brave-browser-archive-keyring.gpg
+      - url: https://packages.cloud.google.com/apt/doc/apt-key.gpg
+        keyring: /usr/share/keyrings/cloud.google.gpg
     set_nvim_as_editor: true
     set_nvim_as_vi_alias: true
     set_nvim_as_vim_alias: true
@@ -289,6 +299,14 @@
               - libfuse2  # for jammy
             state: present
           tags: [apt, packages]
+
+        - name: FILE | symlink for curl headers for rest.nvim/luarocks.nvim
+          become: true
+          ansible.builtin.file:
+            src: /usr/include/x86_64-linux-gnu/curl
+            path: /usr/local/include/curl
+            state: link
+            mode: u=rwx,g=rwx,o=rwx
 
         - name: FILE | ensure .config/nvim exists
           ansible.builtin.file:
