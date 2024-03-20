@@ -41,6 +41,8 @@
       - jq
       - tidy
       - fd-find
+      - gettext
+      - ninja-build
     apt_repositories:
       - repo: deb http://us.archive.ubuntu.com/ubuntu/ {{ ansible_distribution_release }} universe
         filename: ubuntu
